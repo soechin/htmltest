@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>videoinput.js</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="videoinput.js"></script>
+  <script>
+    var videoinput;
+
+    // 初始化
+    $(document).ready(function () {
+      videoinput = new VideoInput();
+      videoinput.initialize('#VideoApp')
+        .then(function () {
+          // 清空裝置列表
+          $('#DeviceSelect').empty();
+
+          // 列舉裝置
+          for (var i = 0; i < videoinput.devices.length; i++) {
+            var device = videoinput.devices[i];
+            var option = $('<option>');
+            option.text(device.name);
+            option.val(device.index);
+            $('#DeviceSelect').append(option);
+          }
+
+          // 觸發事件
+          $('#DeviceSelect').change();
+        })
+        .catch(function (err) {
+          alert('初始化失敗');
+        });
+    });
+
+    // 打開
+    $(document).on('click', '#OpenButton', function () {
+      videoinput.openDevice().then(function () {
+        // 清空解析度列表
+        $('#ResolutionSelect').empty();
+
+        // 列舉解析度
+        for (var i = 0; i < videoinput.resolutions.length; i++) {
+          var resolution = videoinput.resolutions[i];
+          var option = $('<option>');
+          option.text(resolution.width + ' x ' + resolution.height);
+          option.val(resolution.index);
+          $('#ResolutionSelect').append(option);
+        }
+
+        // 當前解析度
+        if (videoinput.resolution) {
+          var resolutionIndex = videoinput.resolution.index;
+          $('#ResolutionSelect').val(resolutionIndex);
+        }
+
+        // 觸發事件
+        $('#ResolutionSelect').change();
+      }).catch(function (err) {
+        alert('打開裝置失敗');
+      });
+    });
+
+    // 關閉
+    $(document).on('click', '#CloseButton', function () {
+      videoinput.closeDevice();
+    });
+
+    // 選擇裝置
+    $(document).on('change', '#DeviceSelect', function () {
+      var deviceIndex = $('#DeviceSelect option:selected').val();
+      videoinput.device = { index: deviceIndex };
+    });
+
+    // 選擇解析度
+    $(document).on('change', '#ResolutionSelect', function () {
+      var resolutionIndex = $('#ResolutionSelect option:selected').val();
+      videoinput.resolution = { index: resolutionIndex };
+    });
+
+    // 旋轉
+    $(document).on('change', '#RotateSelect', function () {
+      var rotate = parseInt($('#RotateSelect').val()) || 0;
+      videoinput.rotateAngle = rotate;
+    });
+
+    // 色彩模式
+    $(document).on('change', '#ColorSelect', function () {
+      var color = parseInt($('#ColorSelect').val()) || 0;
+      videoinput.colorMode = color;
+    });
+
+    // 拍照
+    $(document).on('click', '#GrabButton', function () {
+      // 清空拍照結果
+      $('#PictureBox').empty();
+
+      // 副檔名
+      var ext = $('#ExtensionSelect').val();
+
+      // 拍照
+      videoinput.takePicture(ext).then(function (base64) {
+        var ua = navigator.userAgent;
+        var isIE11 = ua.match('MSIE') || ua.match('Trident');
+
+        if (ext == '.tif' && !isIE11) {
+          // TIFF先轉JPEG再建立縮圖
+          videoinput.convertPicture(base64, '.jpg').then(function (jpg) {
+            var img = $('<img>');
+            img.attr('src', 'data:image/jpeg;base64,' + jpg);
+            $('#PictureBox').append(img);
+          });
+        } else {
+          // 建立縮圖
+          var img = $('<img>');
+          img.attr('src', 'data:image/jpeg;base64,' + base64);
+          $('#PictureBox').append(img);
+        }
+      }).catch(function (err) {
+        alert('拍照失敗');
+      });
+    });
+  </script>
+  <style>
+    body {
+      background: lightgray;
+    }
+
+    #VideoBox {
+      width: 640px;
+      height: 480px;
+      border: 1px solid gray;
+      background: white;
+    }
+
+    #PictureBox {
+      max-width: 640px;
+    }
+
+    #PictureBox img {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <select id="DeviceSelect"></select>
+    <select id="ResolutionSelect"></select>
+    <button id="OpenButton">打開</button>
+    <button id="CloseButton">關閉</button>
+  </div>
+  <br>
+  <div>
+    <select id="RotateSelect">
+      <option value="0">0°</option>
+      <option value="90">90°</option>
+      <option value="180">180°</option>
+      <option value="270">270°</option>
+    </select>
+    <select id="ColorSelect">
+      <option value="0">彩色</option>
+      <option value="1">灰階</option>
+      <option value="2">黑白</option>
+    </select>
+    <select id="ExtensionSelect">
+      <option value=".bmp">BMP</option>
+      <option value=".jpg" selected>JPEG</option>
+      <option value=".png">PNG</option>
+      <option value=".tif">TIFF</option>
+    </select>
+    <button id="GrabButton">拍照</button>
+  </div>
+  <br>
+  <div>
+    預覽畫面:<br>
+    <div id="VideoBox">
+      <div id="VideoApp"></div>
+    </div>
+  </div>
+  <div>
+    拍照結果:<br>
+    <div id="PictureBox"></div>
+  </div>
+</body>
+
+</html>
